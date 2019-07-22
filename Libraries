@@ -1,0 +1,30 @@
+library(readxl)
+library(quantmod)
+library(VIM)
+library(magrittr)
+library(devtools)
+library(digest)
+library(FinancialInstrument)
+library(PerformanceAnalytics)
+library(TTR)
+#library(quantstrat)
+library(data.table) # Rename Column Names
+library(xts) # convert data frame into XTS
+#library(tibble)
+library(dplyr) # to get tlb type frame to run ADX
+#Forecasting
+library(forecast)
+library(ggplot2)
+library(plotly) # Candle Chart
+#library(ggfortify)
+library(tseries)
+library(gridExtra)
+library(docstring)
+library(readr)
+library(caTools) # Data Partitioning
+library(e1071) # SVM
+library(caret) # XGBoost
+library(randomForest) # Random Forest 
+library(lattice)
+
+
