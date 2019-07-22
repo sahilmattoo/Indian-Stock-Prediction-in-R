@@ -1,0 +1,17 @@
+#Initiate
+Sys.setenv(TZ = 'Asia/Kolkata')  # Allows quantstrat to use timestamps
+currency("INR")  # Currency being used
+start <- as.Date("2008-01-01")
+end <- as.Date("2019-07-15")
+#end <- as.Date("2018-09-25")
+RUN(end)
+
+NBCC.NS
+
+
+#YESBANK.NS
+#ICICIBANK.NS
+#reliance.ns
+#moserbaer.ns
+# BSE.NS
+# INFIBEAM.NS
