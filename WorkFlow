@@ -1,0 +1,73 @@
+RUN <- function(end){
+  #### RUN LIBRARIES FILE
+  #### RUN FUNCTION FILEYE
+  #end <- as.Date("2018-11-09")
+  # FOR INFIBEAM
+  s1<- readline(prompt="Enter Stock: ")
+  s2 <- getSymbols(s1, auto.assign=FALSE, src = "yahoo", from = start, to = end)
+  
+  #symbol<-getSymbols("INFIBEAM.NS", src = "yahoo", from = start, to = end)
+  #symbol<-getSymbols(my.CompanyName, src = "yahoo", from = start, to = end)
+  ndf <- s2 # Create Data Frame as a copy of original Data Set used for ADX
+  # Create a Maruti data set of type Data Frame
+  #INFIBEAM <- INFIBEAM.NS
+  #INFIBEAM <- as.data.frame(INFIBEAM) # Convert from "xts" "zoo"
+  # IMPUTING NAs
+  #which(is.na(Maruti))
+  # remove the NA's
+  #INFIBEAM <- na.omit(INFIBEAM)
+  # Create generic dataframe df
+  df <- as.data.frame(ndf)
+  df <- na.omit(df)
+  colnames(df)
+  
+  
+  # Set the Column Names to the generic Names
+  colnames(df) <- c("Open","High","Low","Close", "Volume", "Adjusted")
+  
+  # setnames(df, old=c("INFIBEAM.NS.Open","INFIBEAM.NS.High","INFIBEAM.NS.Low",
+  #                    "INFIBEAM.NS.Close","INFIBEAM.NS.Volume", "INFIBEAM.NS.Adjusted" ), 
+  #          new=c("Open","High","Low","Close", "Volume", "Adjusted"))
+  # 
+  attach(df)
+  #hist(Close, col = "Blue")
+  coeffcient_of_variance = cofvar(Close) 
+  # DROP ADJUSTED
+  df$Adjusted = NULL
+  # To use ADX function with type tld_df
+  tlb_dataframe<-as.tbl(df) 
+  # Create Forecast Time Series Data Frame
+  foredf <- df 
+  # Create Forecast Time Series Data Frame
+  VisualForedf <- df 
+  
+  
+  # Get all the Technical Indicators
+  df <- GetTechnicalValues(df,tlb_dataframe)
+  # Predict the Dependant Variable
+  df <- predictYvalues (df)
+  # Train The Model
+  RandomForestModel <- TrainModel(df)
+  # Forecast the Next 40 Days 
+  ForecastPeriodinDays = 20
+  foredf<- forecastVal(foredf, ForecastPeriodinDays)
+  # Visualization and Charts of Future Data
+  VisualForedf <- ForecastCharts(df,foredf,ForecastPeriodinDays)
+  # Predict the Technical Indicator for the Forecasted Value 
+  predictionsdf<- TechIndicatorForecast(df,foredf, ForecastPeriodinDays)
+  # Test The FINAL FORECAST DATA
+  Final<- TestModel(RandomForestModel, predictionsdf)
+  symbol<-s1
+  Final$stockName <-symbol
+  View(Final)
+  PrintDF<- data.frame(1:length(Final$Dates))
+  PrintDF$Dates<- Final$Dates
+  PrintDF$Sym <- Final$stockName
+  PrintDF$Prediction <- Final$Forecast
+  PrintDF$X1.length.Final.Dates. <- NULL
+  View(PrintDF)
+  print("Overall Recommendation")
+  displaymessage(Final)
+  #print("Additional Value Add On ")
+  ValueAddOn(VisualForedf)
+}
