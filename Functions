@@ -1,0 +1,613 @@
+
+
+#Functions
+
+# Find Covarance Percentage
+cofvar <- function(val){
+  meanval = mean(val)
+  sdval = sd(val)
+  cov = (sdval/meanval)*100
+  # Y = pnorm(val, mean = meanval, sd = sdval)
+  # plot(Y)
+  return(cov)
+}
+
+#Chainkin function
+chainkin <- function(df){
+  cmf <- CMF(df[,c("High","Low","Close")],df[,"Volume"])
+  return(cmf)
+}
+
+chainkinband <- function(df){
+  # Identify Negative and Positive
+  cmfv = ifelse(df>0,"Buy","Sell")
+  return(cmfv)
+}
+
+bollband <- function(df){
+  tbc<- BBands(df[,"Close"] )
+  return(tbc)
+}
+
+showchart <- function(V){
+  chartSeries(V,
+              type = c("auto", "candlesticks", "matchsticks", "bars","line"), 
+              subset = NULL,
+              show.grid = TRUE, 
+              name = NULL,
+              time.scale = NULL,
+              TA = 'addVo()',
+              TAsep=';',
+              line.type = "l",
+              bar.type = "ohlc",
+              theme = chartTheme("black"),
+              layout = NA,
+              major.ticks='auto', minor.ticks=TRUE)
+  
+}
+
+calcADX <- function(adxval){
+  tr = ifelse(adxval<25,"Weak Trend", ifelse(adxval<50,"Strong Trend", 
+                                             ifelse(adxval<75,"Very Strong Trend","Extremely Strong Trend")))
+  return(tr)
+}  
+
+AROONTREND <- function(Up,Dn,d){
+  LB = ifelse(Up>70,'SELL',ifelse(Dn<30,'BUY','HOLD'))
+  d$Label=LB # DoesntWork
+  
+}
+
+AROONTREND1 <- function(Up,Dn){
+  LB = ifelse(Dn>Up,'SELL','BUY')
+}
+
+OSC <- function(Os){
+  LB = ifelse(Os>50,'Buy',ifelse(Os<(-50),"Sell","Hold"))
+}
+
+data.timeseries <- function(val, H){
+  data.ts =ts(val, frequency = 5) 
+  model_arima <- auto.arima(data.ts)
+  FC<-forecast(model_arima, h=H)
+  return(FC)
+}
+
+
+# createnewdf <- function(N,H){
+#   Newdf = c(1:H)
+#   Newdf = as.data.frame(Newdf)
+#   Newdf$Open = c(1:H)
+#   Newdf$High = c(1:H)
+#   Newdf$Close = c(1:H)
+#   Newdf$Low = c(1:H)
+#   Newdf$Volume = c(1:H)
+#   
+# }
+################ PREDICT VALUE FOR Y ####################
+# Predictors
+# Create Colums for Historic Mean, Historic SD, Future Mean, Future SD
+predictYvalues <- function(df){
+  colnames(df)
+  N<-length(df$Close)
+  df$Mu1 <- data.frame(1:N)
+  df$Mu1[] <- NA
+  
+  df$Sd1 <- data.frame(1:N)
+  df$Sd1[] <- NA
+  
+  # Historic Mean And SD
+  Period = 20 
+  i = 0
+  j = Period+1
+  while(i<(N-Period)){
+    df$Mu1[j,1]= mean(df$Close[i:(j-1)])
+    df$Sd1[j,1]= sd(df$Close[i:(j-1)])
+    i=i+1
+    j=j+1
+  }
+  
+  # Future Mean abd Sd 
+  
+  df$Mu2 <- data.frame(1:N)
+  df$Sd2 <- data.frame(1:N)
+  df$Mu2[] <- NA
+  df$Sd2[] <- NA
+  
+  i = 0
+  j = Period+1
+  while(i<(N-Period)){
+    df$Mu2[j,1]= mean(df$Close[(j+1):(j+21)])
+    df$Sd2[j,1]= sd(df$Close[(j+1):(j+21)])
+    i=i+1
+    j=j+1
+  }
+  
+  colnames(df)
+  
+  # Create Label
+  
+  df$PredictY <- data.frame(1:N)
+  df$PredictY[] <- NA
+  
+  A<- ifelse(df$Mu1>df$Mu2,"SELL",
+             ifelse(df$Sd2<df$Sd1,"Potential_Buy", "Risky_Buy" ))
+  
+  df$PredictY <- A
+  
+  # Drop Extra Colums
+  df$Mu1 <- NULL
+  df$Sd1 <- NULL
+  df$Mu2 <- NULL
+  df$Sd2 <- NULL
+  
+  # Assign to a New Data Frame to keep the data as reference
+  Preddf <- df
+  
+  return(Preddf)
+}
+
+################# FORECAST VALUE ###############
+#Forecasting
+#Define Time-Frame - 20 + 20
+forecastVal <- function(foredf,periodForecast){
+  H = periodForecast
+  Newdf <- data.frame()
+  Newdf = c(1:H)
+  Newdf = as.data.frame(Newdf)
+  Newdf$Open = c(1:H)
+  Newdf$High = c(1:H)
+  Newdf$Close = c(1:H)
+  Newdf$Low = c(1:H)
+  Newdf$Volume = c(1:H)
+  
+  # Convert to Time Series data
+  col_name <- foredf$Open # foredf DF was kept to have the initial image
+  dts <- data.timeseries(col_name, H)
+  dts = as.data.frame(dts)
+  Newdf$Open <- dts$`Point Forecast`
+  
+  col_name <- foredf$High
+  dts <- data.timeseries(col_name, H)
+  dts = as.data.frame(dts)
+  Newdf$High <- dts$`Point Forecast`
+  
+  col_name <- foredf$Low
+  dts <- data.timeseries(col_name, H)
+  dts = as.data.frame(dts)
+  Newdf$Low <- dts$`Point Forecast`
+  
+  col_name <- foredf$Close
+  dts <- data.timeseries(col_name, H)
+  dts = as.data.frame(dts)
+  Newdf$Close <- dts$`Point Forecast`
+  
+  
+  col_name <- foredf$Volume
+  dts <- data.timeseries(col_name, H)
+  dts = as.data.frame(dts)
+  Newdf$Volume <- dts$`Point Forecast`
+  
+  colnames(Newdf)
+  
+  Newdf$Newdf = NULL
+  return(Newdf)
+  
+  # RUN PREDICTION FILE TO FIND THE TECHNICAL TRENDS ON FORECAST VALUE
+  
+  
+}
+
+##### PREDICT THE TECHNICAL INDICATORS
+TechIndicatorForecast <- function(df,foredf,ND){
+  records <- dim(df)[1] # 1690
+  st = records -20 # Last 20  -1670
+  FDates = ND
+  #FDates = 20 # Future dates
+  
+  # Last 20 Records
+  DF1 <- df[st:records,c(1:5)] #records from Historical Data # 
+  DF2 <- foredf # This is a forcasted Data Frame
+  
+  # colnames(DF1)
+  # colnames(DF2)
+  
+  C<- dim(DF1)[1]+dim(DF2)[1] # Total 41
+  
+  # Merge Two Data Frames
+  NNDF1 <- data.frame(1:C)
+  NNDF1$Open <- c(DF1$Open,DF2$Open)
+  NNDF1$High <- c(DF1$Open,DF2$High)
+  NNDF1$Low <- c(DF1$Open,DF2$Low)
+  NNDF1$Close <- c(DF1$Close,DF2$Close)
+  NNDF1$Volume <- c(DF1$Open,DF2$Volume)
+  Pdf <- NNDF1
+  
+  ##### VOLUME
+  
+  # Calculate CMF - Chaikin Money Flow - Accumulation / Distribution 
+  cmf = chainkin(Pdf)
+  Pdf$cmf <- cmf
+  #cmfb = chainkinband(Pdf$cmf)
+  # Pdf$cmfb <- cmfb
+  
+  
+  
+  ##### VOLATALITY
+  #Bollinger Bands - Gives High Band and Low Band - 
+  # sc <- showchart(ndf)
+  # addMACD()             
+  
+  Bband <- bollband(Pdf)
+  Bband = as.data.frame(Bband)
+  Pdf$UpperLimitBB <- Bband$up
+  Pdf$LowerLimitBB <- Bband$dn
+  
+  Ptlb_dataframe<-as.tbl(Pdf) # To use ADX function with type tld_df
+  
+  # ADX - Trend Indicator
+  adxval <- ADX((Ptlb_dataframe[,c("High","Low","Close")]), n=10)
+  adxval = as.data.frame(adxval)
+  #adxval
+  Pdf$DIp <- adxval$DIp
+  Pdf$DIn <- adxval$DIn
+  Pdf$Dx  <- adxval$DX
+  Pdf$ADX <-adxval$ADX
+  
+  #adxtrend <- calcADX(adxval$ADX) # Find the ADX Trend Based upon its Range
+  #Pdf$adxTrend <- adxtrend
+  
+  
+  # This Graph is Optional
+  #addADX(n = 20, maType="EMA", wilder=TRUE)
+  
+  
+  # AROON
+  
+  Aroontrend <- aroon( Pdf[,c("High", "Low")], n=20 )
+  Aroontrend = as.data.frame(Aroontrend)
+  colnames(Aroontrend)
+  Pdf$AroonUP = Aroontrend$aroonUp
+  Pdf$AroonDn = Aroontrend$aroonDn
+  Pdf$Oscillator = Aroontrend$oscillator
+  ### aroonup is above 70 - Strong trend
+  ### aroonup is below 30 - week trend
+  PLB <- AROONTREND(Pdf$AroonUP,Pdf$AroonDn,Pdf)
+  #Pdf$Label <- PLB
+  #str(df)
+  
+  
+  dim(DF1)[1]
+  # Final Data Frame for Prediction
+  FPdf<- Pdf[c(21:C),]
+  ForecastCMF <- FPdf$cmf
+  latest_date = as.Date(end, format = "%m/%d/%Y")
+  #str(latest_date)
+  
+  DataFrameLength = length(FPdf$Close)
+  FutureDateLength = 0
+  i=0
+  while(FutureDateLength<DataFrameLength){
+    future_dates = seq(latest_date,length.out = (FDates+i), by = "1 day")
+    future_dates= future_dates[!weekdays(future_dates) %in% c("Sunday", "Saturday")]
+    FutureDateLength<-length(future_dates)
+    i=i+1
+  }
+  
+  FPdf$X1.C = future_dates
+  
+  setnames(FPdf, old=("X1.C"), new=("Dates"))
+  
+  #View(FPdf)
+  # Go to KFOLD
+  # This Data Set will be used in Test Model File
+  
+  
+  return(FPdf)
+  
+}
+
+################# TRAIN THE MODEL 
+
+TrainModel <- function(df){
+  # Machine Learning
+  #Create a Machine Learning Data Frame
+  # Create DF form Machine Learning Data Frame
+  MLdf1 <- df
+  
+  # Drop Tables
+  MLdf1$cmfb = NULL
+  MLdf1$adxTrend = NULL
+  MLdf1$Label1 = NULL
+  MLdf1$Oscilate = NULL
+  
+  # Convert Dependent Variable into Factors
+  MLdf1$PredictY <- as.factor(MLdf1$PredictY)
+  
+  # Create Data Frame for Random Forest
+  RFDF1<- MLdf1
+  dim(RFDF1) #1684   15
+  # Impute NA Values
+  RFDF1 <-na.omit(RFDF1)
+  # Test Without Scaling
+  # Split The Date Set
+  #library(caTools)
+  set.seed(123)
+  split = sample.split(RFDF1$PredictY, SplitRatio = 0.8) # Gives values in True and False
+  train = subset(RFDF1, split == TRUE)
+  test = subset(RFDF1, split == FALSE)
+  
+  ### IF YOU DONT GET THE SAME DIM THEN YOU HAVE NOT CLEARED THE Mu1,Mu2 col from Technical Analysis
+  dim(train) # 1315   15
+  dim(test) #328  15
+  
+  which(is.na(test)) # This Should Be Zero
+  
+  RF = randomForest(train$PredictY ~ .,
+                    data =train, 
+                    ntree=10)
+  
+  #varImpPlot(RF)                       
+  
+  # Predict 
+  Y_Pred = predict(RF, newdata = test)
+  test$YPRED = Y_Pred
+  
+  A<-mean(Y_Pred==test$PredictY)
+  print("The Model Accuracy is ")
+  print(A)
+  
+  #Accuracy ->0.8389058
+  #View(test)
+  cm  = table(test$PredictY, Y_Pred)
+  cm
+  print("Confusion Metric")
+  print(cm)
+  ################# KFOLD
+  
+  # Applying k-Fold Cross Validation
+  # install.packages('caret')
+  # #library(caret)
+  # folds = createFolds(train$PredictY, k = 10)
+  # # Function will find the accuracy of each fold
+  # cv = lapply(folds, function(x) {
+  #   training_fold = train[-x, ]
+  #   test_fold = train[x, ]
+  #   # classifier = xgboost(data = as.matrix(training_set[-11]), label = training_set$Exited, nrounds = 10)
+  #   # y_pred = predict(classifier, newdata = as.matrix(test_fold[-11]))
+  #   # y_pred = (y_pred >= 0.5)
+  #   # cm = table(test_fold[, 11], y_pred)
+  #   RF1 = randomForest(training_fold$PredictY ~ .,
+  #                      data =training_fold)
+  #   Y_Pred = predict(RF1, newdata = test_fold)
+  #   cm  = table(test_fold$PredictY, Y_Pred)
+  #   accuracy = (cm[1,1] + cm[2,2]) / (cm[1,1] + cm[2,2] + cm[1,2] + cm[2,1])
+  #   return(accuracy)
+  # })
+  # accuracy = mean(as.numeric(cv))
+  # accuracy
+  # print("KFOLD Accuracy is")
+  # print(accuracy)
+  # # Forecast the Model
+  return(RF)
+}
+
+################ PREDICT ON FORECAST DATA
+TestModel <- function(RF,FTestData){
+  Forecast_Pred = predict(RF, newdata = FTestData)
+  FTestData$Forecast = Forecast_Pred
+  return(FTestData)
+}
+
+################### GET TECHNICAL VALUES ###########
+GetTechnicalValues <- function(df,tlb_dataframe){
+  cmf = chainkin(df)
+  df$cmf <- cmf
+  cmfb = chainkinband(df$cmf)
+  df$cmfb <- cmfb
+  CMFVAL <- df$cmf
+  df$cmf <- NULL
+  
+  Bband <- bollband(df)
+  Bband = as.data.frame(Bband)
+  df$UpperLimitBB <- Bband$up
+  df$LowerLimitBB <- Bband$dn
+  
+  adxval <- ADX((tlb_dataframe[,c("High","Low","Close")]), n=10)
+  adxval = as.data.frame(adxval)
+  
+  df$DIp<- adxval$DIp
+  df$DIn<- adxval$DIn
+  df$Dx <- adxval$DX
+  df$ADX <- adxval$ADX
+  
+  adxtrend <- calcADX(adxval$ADX) # Find the ADX Trend Based upon its Range
+  df$adxTrend <- adxtrend
+  
+  # AROON
+  Aroontrend <- aroon( df[,c("High", "Low")], n=20 )
+  Aroontrend = as.data.frame(Aroontrend)
+  #colnames(Aroontrend)
+  df$AroonUP = Aroontrend$aroonUp
+  df$AroonDn = Aroontrend$aroonDn
+  df$Oscillator = Aroontrend$oscillator
+  
+  
+  ### aroonup is above 70 - Strong trend
+  ### aroonup is below 30 - week trend
+  # LB <- AROONTREND(df$AroonUP,df$AroonDn,df)
+  # df$Label <- LB
+  # str(df)
+  
+  LB1 <- AROONTREND1(df$AroonUP,df$AroonDn)
+  df$Label1 <- LB1
+  
+  LB2 <- OSC(df$Oscillator)
+  df$Oscilate <- LB2
+  
+  
+  return(df)
+}
+
+### Day Trading
+## find range
+## Upper Limit
+UpperRange <- function(X){
+  XHigh<- X$High
+  XHigh <- as.data.frame(XHigh)
+  M<-XHigh %>% top_n(100)
+  M <- as.data.frame(M)
+  UR <-(sum(M[1:100,]))/100
+  return(UR)
+} 
+LowerRange <-function(X){
+  XLow<- X$Low
+  XLow <- as.data.frame(XLow)
+  M<-XLow %>% top_n(100)
+  M <- as.data.frame(M)
+  LR <-(sum(M[1:100,]))/100
+  return(LR)
+} 
+
+######## Charts on the Forecast - 20 Day Range
+ForecastCharts <- function(df,foredf,ND){
+  records <- dim(df)[1] # 1690
+  st = records -20 # Last 20  -1670
+  FDates = ND
+  #FDates = 20 # Future dates
+  
+  # Last 20 Records
+  DF1 <- df[st:records,c(1:5)] #records from Historical Data # 
+  DF2 <- foredf # This is a forcasted Data Frame
+  
+  # colnames(DF1)
+  # colnames(DF2)
+  
+  C<- dim(DF1)[1]+dim(DF2)[1] # Total 41
+  
+  # Merge Two Data Frames
+  NNDF1 <- data.frame(1:C)
+  NNDF1$Open <- c(DF1$Open,DF2$Open)
+  NNDF1$High <- c(DF1$Open,DF2$High)
+  NNDF1$Low <- c(DF1$Open,DF2$Low)
+  NNDF1$Close <- c(DF1$Close,DF2$Close)
+  NNDF1$Volume <- c(DF1$Open,DF2$Volume)
+  Pdf <- NNDF1
+  
+  ##### VOLUME
+  
+  # Calculate CMF - Chaikin Money Flow - Accumulation / Distribution 
+  cmf = chainkin(Pdf)
+  Pdf$cmf <- cmf
+  #cmfb = chainkinband(Pdf$cmf)
+  # Pdf$cmfb <- cmfb
+  
+  
+  
+  ##### VOLATALITY
+  #Bollinger Bands - Gives High Band and Low Band - 
+  # sc <- showchart(ndf)
+  # addMACD()             
+  
+  Bband <- bollband(Pdf)
+  Bband = as.data.frame(Bband)
+  Pdf$UpperLimitBB <- Bband$up
+  Pdf$LowerLimitBB <- Bband$dn
+  
+  Ptlb_dataframe<-as.tbl(Pdf) # To use ADX function with type tld_df
+  
+  # ADX - Trend Indicator
+  adxval <- ADX((Ptlb_dataframe[,c("High","Low","Close")]), n=10)
+  adxval = as.data.frame(adxval)
+  #adxval
+  Pdf$DIp <- adxval$DIp
+  Pdf$DIn <- adxval$DIn
+  Pdf$Dx  <- adxval$DX
+  Pdf$ADX <-adxval$ADX
+  
+  #adxtrend <- calcADX(adxval$ADX) # Find the ADX Trend Based upon its Range
+  #Pdf$adxTrend <- adxtrend
+  
+  
+  # This Graph is Optional
+  #addADX(n = 20, maType="EMA", wilder=TRUE)
+  
+  
+  # AROON
+  
+  Aroontrend <- aroon( Pdf[,c("High", "Low")], n=20 )
+  Aroontrend = as.data.frame(Aroontrend)
+  colnames(Aroontrend)
+  Pdf$AroonUP = Aroontrend$aroonUp
+  Pdf$AroonDn = Aroontrend$aroonDn
+  Pdf$Oscillator = Aroontrend$oscillator
+  ### aroonup is above 70 - Strong trend
+  ### aroonup is below 30 - week trend
+  PLB <- AROONTREND(Pdf$AroonUP,Pdf$AroonDn,Pdf)
+  #Pdf$Label <- PLB
+  #str(df)
+  # latest_date = as.Date(end, format = "%m/%d/%Y")
+  # future_dates = seq(latest_date,length.out = DataFrameLength, by = "1 day")
+  # future_dates= future_dates[!weekdays(future_dates) %in% c("Sunday", "Saturday")]
+  # 
+  # 
+  # Pdf$X1.C = future_dates
+  # setnames(Pdf, old=("X1.C"),
+  #          new=("Dates"))
+  # 
+  return(Pdf)
+}  
+
+displaymessage <- function(Final){
+  len <- length(Final$Forecast)
+  SELLCOUNT = 0
+  BUYCOUNT = 0
+  iteration = 1
+  while(iteration <= len){
+    Val = Final$Forecast[iteration]
+    if(Val=="SELL"){
+      #print("Value is SELL")
+      SELLCOUNT = SELLCOUNT + 1
+    }else {
+      #print("Value is Potential BUY")
+      BUYCOUNT =BUYCOUNT + 1
+    }
+    iteration =iteration+1
+  }
+  SELLCOUNTPercentage = (SELLCOUNT/len)*100
+  BUYCOUNTPercentage = (BUYCOUNT/len)*100
+  if(SELLCOUNTPercentage>BUYCOUNTPercentage){
+    cat("Probability of Price might go DOWN in next 20 Days is with (-) ",round(SELLCOUNTPercentage,2),"%")
+    cat('\n')
+  }else{
+    cat("Probability of Price might go UP in next 20 Days is (+) ",round(BUYCOUNTPercentage,2),"%")
+    cat('\n')
+  }
+  
+}
+
+ValueAddOn <- function(VisualForedf){
+  MHL<- mean(VisualForedf$High-VisualForedf$Low)
+  SDHL <- sd(VisualForedf$High-VisualForedf$Low)
+  MOC<- mean(VisualForedf$Open - VisualForedf$Close)
+  SDOC <- sd(VisualForedf$Open - VisualForedf$Close)
+  MO<- mean(VisualForedf$Open)
+  SDO <- sd(VisualForedf$Open)
+  MC <- mean(VisualForedf$Close)
+  cat("With Volatility Rate of",round(MHL,2),"%")
+  cat('\n')
+  print("Additional Value Add On ")
+  Amount = 100000
+  NoOfShare = round(Amount/MO,0)
+  HLimit <- abs(round(NoOfShare*MHL,2))
+  cat("In GOD MODE, Buying at all lows and Selling at all Highs, Maximum potential is INR",HLimit)
+  LLimit <- abs(round(NoOfShare*MOC,2))
+  cat('\n')
+  #cat("Average potential is INR",LLimit)
+  #LLimit = 2
+  cat("At Minimal Value of gains made at the volatality of Stock,Average potential is INR",LLimit)
+  cat('\n')
+  cat('\n')
+  
+}
+
